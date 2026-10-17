@@ -227,6 +227,28 @@ func TestAuditEventsAndResultsCSVArePersistedWithoutLearnerAnswers(t *testing.T)
 	}
 }
 
+func TestResultsCSVNeutralizesSpreadsheetFormulas(t *testing.T) {
+	service := testService(t)
+	version := `=HYPERLINK("https://example.invalid","open")`
+	if _, err := service.CreateCourse(CreateCourseInput{OrganizationID: "acme", ActorID: "trainer", ID: "formula-course", Version: version, Title: "CSV検証", Lessons: []LessonRef{{LessonID: "sample/fix", LessonVersion: "1.0.0"}}, RequiredLessons: []LessonRef{{LessonID: "sample/fix", LessonVersion: "1.0.0"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.CreateAssignments(CreateAssignmentsInput{OrganizationID: "acme", ActorID: "trainer", CourseID: "formula-course", CourseVersion: version, LearnerIDs: []string{"alice"}, DueAt: time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC), AllowRetry: true}); err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	if err := service.WriteResultsCSV(&output, "acme"); err != nil {
+		t.Fatal(err)
+	}
+	records, err := csv.NewReader(&output).ReadAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(records) != 2 || records[1][2] != "'"+version {
+		t.Fatalf("formula was not neutralized: %#v", records)
+	}
+}
+
 type failingCSVWriter struct{ writes int }
 
 func (writer *failingCSVWriter) Write(value []byte) (int, error) {
