@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -857,7 +858,7 @@ func (service *Service) WriteResultsCSV(writer io.Writer, organizationID string)
 		if completion, exists := completions[assignment.ID]; exists {
 			completedAt = completion.CompletedAt.UTC().Format(time.RFC3339Nano)
 		}
-		if err := writeCSVRecord(csvWriter, []string{assignment.LearnerID, assignment.CourseID, assignment.CourseVersion, string(assignment.Status), completedAt, evaluationResult(assignment.Status)}); err != nil {
+		if err := writeCSVRecord(csvWriter, []string{safeCSVCell(assignment.LearnerID), safeCSVCell(assignment.CourseID), safeCSVCell(assignment.CourseVersion), string(assignment.Status), completedAt, evaluationResult(assignment.Status)}); err != nil {
 			return err
 		}
 	}
@@ -870,6 +871,14 @@ func writeCSVRecord(writer *csv.Writer, record []string) error {
 	}
 	writer.Flush()
 	return writer.Error()
+}
+
+// safeCSVCellは表計算ソフトが外部由来の値を数式として評価することを防ぐ。
+func safeCSVCell(value string) string {
+	if value != "" && strings.ContainsRune("=+-@\t\r\n", rune(value[0])) {
+		return "'" + value
+	}
+	return value
 }
 
 func evaluationResult(status AssignmentStatus) string {
