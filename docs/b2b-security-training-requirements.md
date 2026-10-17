@@ -258,6 +258,7 @@ MVPでは、まず1社の研修担当者が若手開発者向け研修を実施�
 
 ## 13. 既存文書との関係
 
+- [法人研修ドメイン契約](b2b-domain-contract-v0.1.md)は、Organization、Course、Lesson、Lab、Assignment、Submission、Completionの責務、LessonからLabへの参照、学習UIとRunnerの最小境界を定める。
 - [プロダクト方針](product-vision.md)は、個人・初学者向けの記述を本方針に合わせて改定する必要がある。
 - [Vulhub連携MVP](vulhub-learning-mvp.md)の固定スナップショット、安全性検査、LabとLessonの分離は継承する。
 - [初期教材方針](initial-lessons.md)は、CVE ID中心の見せ方から実在事例・開発者研修中心の構成へ見直す。
