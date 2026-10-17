@@ -77,6 +77,7 @@ npm run web:start
 - [アーキテクチャ](docs/architecture-v0.1.md)
 - [学習インターフェース](docs/interface-study.md)
 - [研修管理・受講連携 API](docs/training/management-api-v1.md)
+- [研修結果CSV・監査イベント](docs/training/export-audit-v1.md)
 - [セキュリティ仕様](docs/security-v1.md)
 
 ## 安全上の注意
