@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -90,5 +91,13 @@ func TestLocalHandlerSeparatesManagementAndLearnerAuthorization(t *testing.T) {
 	submissions, err := service.ListSubmissions("local", assignments[0].ID)
 	if err != nil || len(submissions) != 1 || submissions[0].Answers["trace-boundary"] != "保存済み回答" {
 		t.Fatalf("unexpected submissions: %#v %v", submissions, err)
+	}
+	audit := call(http.MethodGet, "/api/training/audit-events", "", "X-Reprokit-Management-Session", "management-session-token")
+	if audit.Code != http.StatusOK || strings.Contains(audit.Body.String(), "保存済み回答") || !strings.Contains(audit.Body.String(), `"action":"assignment_status_changed"`) {
+		t.Fatalf("unexpected protected audit response: status=%d body=%q", audit.Code, audit.Body.String())
+	}
+	export := call(http.MethodGet, "/api/training/exports/results.csv", "", "X-Reprokit-Management-Session", "management-session-token")
+	if export.Code != http.StatusOK || strings.Contains(export.Body.String(), "保存済み回答") || !strings.Contains(export.Body.String(), "learner,secure-course,1.0.0,submitted") {
+		t.Fatalf("unexpected protected CSV response: status=%d body=%q", export.Code, export.Body.String())
 	}
 }
