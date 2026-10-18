@@ -174,8 +174,8 @@ func NewManager(store Store, provider Provider) (*Manager, error) {
 
 // Prepare は安全性検査済みの固定Labを登録するだけで、コンテナを起動しない。
 func (manager *Manager) Prepare(ctx context.Context, lab PreparedLab) (Session, error) {
-	if lab.LabID != "vulhub/filebrowser-cve-2026-54088" || !shaPattern.MatchString(lab.SourceRevision) {
-		return Session{}, errors.New("only the fixed File Browser Lab revision may be prepared")
+	if !shaPattern.MatchString(lab.SourceRevision) || !isApprovedLabArtifact(lab.LabID, lab.Artifact) {
+		return Session{}, errors.New("only a reviewed Lab revision may be prepared")
 	}
 	inspection, err := security.InspectComposeWithGuardrails(lab.Compose, lab.Guardrails)
 	if err != nil {

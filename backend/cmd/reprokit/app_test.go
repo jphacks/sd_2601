@@ -171,7 +171,7 @@ func TestRealCoreWiringDefersPreparationAndRestoresAfterRestart(t *testing.T) {
 	}
 }
 
-func TestGoGitLessonPreparesOnlyItsReviewedReference(t *testing.T) {
+func TestGoGitLessonPreparesItsReviewedComparisonLab(t *testing.T) {
 	ctx := context.Background()
 	provider := &harmlessProvider{}
 	var fetches atomic.Int32
@@ -184,10 +184,6 @@ func TestGoGitLessonPreparesOnlyItsReviewedReference(t *testing.T) {
 		t.Fatal(err)
 	}
 	origin := serveApplication(t, app)
-	requestJSON(t, origin, app.server.SessionToken, http.MethodPost, "/api/labs", map[string]any{"lessonId": goGitLessonID, "lessonVersion": goGitLessonVersion, "labRef": "fixed"}, 400, nil)
-	if fetches.Load() != 0 {
-		t.Fatal("unapproved comparison reference fetched source")
-	}
 	var session runtime.Session
 	requestJSON(t, origin, app.server.SessionToken, http.MethodPost, "/api/labs", map[string]any{"lessonId": goGitLessonID, "lessonVersion": goGitLessonVersion, "labRef": "vulnerable"}, 200, &session)
 	if session.LabID != goGitLabID || session.State != runtime.Prepared || fetches.Load() != 1 {

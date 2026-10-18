@@ -68,8 +68,34 @@ type Artifact struct {
 	Platform           string
 }
 
+// approvedLabArtifact はレビュー済みLabごとの不変な取得元を定義する。
+// ここにないLabや取得元を、実行時入力から追加することは許可しない。
+type approvedLabArtifact struct {
+	SourceURL          string
+	SourceSubdirectory string
+	Platform           string
+}
+
+var approvedLabArtifacts = map[string]approvedLabArtifact{
+	"vulhub/filebrowser-cve-2026-54088": {
+		SourceURL:          "https://github.com/Saku0512/vulhub.git",
+		SourceSubdirectory: "filebrowser/CVE-2026-54088",
+		Platform:           "linux/amd64",
+	},
+	"reprokit/go-git-cve-2026-71557": {
+		SourceURL:          "https://github.com/Saku0512/reprokit-go-git-cve-2026-71557-lab.git",
+		SourceSubdirectory: "lab",
+		Platform:           "linux/amd64",
+	},
+}
+
+func isApprovedLabArtifact(labID string, artifact Artifact) bool {
+	expected, ok := approvedLabArtifacts[labID]
+	return ok && artifact.SourceURL == expected.SourceURL && artifact.SourceSubdirectory == expected.SourceSubdirectory && artifact.Platform == expected.Platform
+}
+
 func createLock(lab PreparedLab, normalized []byte) ([]byte, error) {
-	if !shaPattern.MatchString(lab.Artifact.RegistryRevision) || !validRelativePath(lab.Artifact.ManifestPath) || !validRelativePath(lab.Artifact.RuntimeFile) || len(lab.Artifact.Manifest) == 0 || lab.Artifact.SourceURL != "https://github.com/Saku0512/vulhub.git" || lab.Artifact.SourceSubdirectory != "filebrowser/CVE-2026-54088" || lab.Artifact.Platform != "linux/amd64" {
+	if !shaPattern.MatchString(lab.Artifact.RegistryRevision) || !validRelativePath(lab.Artifact.ManifestPath) || !validRelativePath(lab.Artifact.RuntimeFile) || len(lab.Artifact.Manifest) == 0 || !isApprovedLabArtifact(lab.LabID, lab.Artifact) {
 		return nil, errors.New("fixed Lab artifact is incomplete")
 	}
 	if err := lab.Guardrails.Validate(); err != nil {
@@ -103,7 +129,8 @@ func createLock(lab PreparedLab, normalized []byte) ([]byte, error) {
 }
 
 func verifyArtifact(session Session) ([]byte, error) {
-	if session.LabID != "vulhub/filebrowser-cve-2026-54088" || !shaPattern.MatchString(session.SourceRevision) || !shaPattern.MatchString(session.RegistryRevision) || session.SourceURL != "https://github.com/Saku0512/vulhub.git" || session.SourceSubdirectory != "filebrowser/CVE-2026-54088" || session.Platform != "linux/amd64" {
+	artifact := Artifact{SourceURL: session.SourceURL, SourceSubdirectory: session.SourceSubdirectory, Platform: session.Platform}
+	if !shaPattern.MatchString(session.SourceRevision) || !shaPattern.MatchString(session.RegistryRevision) || !isApprovedLabArtifact(session.LabID, artifact) {
 		return nil, errors.New("stored Lab identity is invalid")
 	}
 	if len(session.Manifest) == 0 || !validRelativePath(session.ManifestPath) || !validRelativePath(session.RuntimeFile) {

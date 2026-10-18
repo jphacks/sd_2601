@@ -302,6 +302,27 @@ func validLab() PreparedLab {
 	}
 }
 
+func TestPrepareAllowsReviewedGoGitLab(t *testing.T) {
+	manager, err := NewManager(NewMemoryStore(), &fakeProvider{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lab := validLab()
+	lab.LabID = "reprokit/go-git-cve-2026-71557"
+	lab.Artifact.ManifestPath = "manifests/reprokit/go-git-cve-2026-71557.yaml"
+	lab.Artifact.SourceURL = "https://github.com/Saku0512/reprokit-go-git-cve-2026-71557-lab.git"
+	lab.Artifact.SourceSubdirectory = "lab"
+	lab.Artifact.RuntimeFile = "compose.yaml"
+
+	session, err := manager.Prepare(context.Background(), lab)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if session.LabID != lab.LabID {
+		t.Fatalf("lab ID = %q, want %q", session.LabID, lab.LabID)
+	}
+}
+
 func TestObserveMarkerReadsOnlyRunningComparisonService(t *testing.T) {
 	provider := &fakeProvider{marker: "uid=1000(filebrowser)"}
 	manager, err := NewManager(NewMemoryStore(), provider)
