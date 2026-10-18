@@ -7,6 +7,11 @@ import (
 	"github.com/jphacks/sd_2601/internal/runtime"
 )
 
+var approvedLabIDs = map[string]struct{}{
+	"reprokit/go-git-cve-2026-71557":    {},
+	"vulhub/filebrowser-cve-2026-54088": {},
+}
+
 // FixedLab はWebから指定できるLesson参照と、Runnerだけが保持する実行定義を結び付ける。
 type FixedLab struct {
 	Lesson   LessonReference
@@ -26,8 +31,8 @@ func NewLifecycleService(manager *runtime.Manager, fixed FixedLab) (*LifecycleSe
 	if fixed.Lesson.LessonID == "" || fixed.Lesson.LessonVersion == "" || fixed.Lesson.LabRef == "" {
 		return nil, errors.New("fixed Lesson reference is required")
 	}
-	if fixed.Prepared.LabID != "vulhub/filebrowser-cve-2026-54088" {
-		return nil, errors.New("only the File Browser Lab may be configured")
+	if _, approved := approvedLabIDs[fixed.Prepared.LabID]; !approved {
+		return nil, errors.New("Lab is not approved for the local Runner")
 	}
 	return &LifecycleService{manager: manager, fixed: fixed}, nil
 }

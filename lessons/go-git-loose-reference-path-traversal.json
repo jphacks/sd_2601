@@ -87,7 +87,7 @@
         "id": "observe-vulnerable",
         "title": "固定入力で脆弱版を観察する",
         "labRef": "vulnerable",
-        "instruction": "脆弱版の接続先へPOST /api/observeを送る。本文やクエリは追加しない。レスポンスのresult、craftedReference、configurationIntactを確認する。",
+        "instruction": "脆弱版の接続先にある/api/observeを開く。入力、本文、クエリは追加しない。レスポンスのresult、craftedReference、configurationIntactを確認する。",
         "expectedResult": "resultがvulnerableとなり、configurationIntactがfalseである。",
         "observation": "固定参照refs/heads/../../configが、Labの一時.git/configを上書きしたことだけが示される。",
         "hints": ["Labはリクエストごとに一時ディレクトリを削除するため、ホストの設定は変更されない。"]
@@ -104,7 +104,7 @@
         "id": "compare-fixed",
         "title": "修正版で同じ固定入力を比較する",
         "labRef": "fixed",
-        "instruction": "修正版サービスを明示的に起動し、同じくPOST /api/observeを本文なしで送る。脆弱版と同じcraftedReferenceに対するresultとconfigurationIntactを比較する。",
+        "instruction": "修正版サービスを明示的に起動し、同じく/api/observeを開く。脆弱版と同じcraftedReferenceに対するresultとconfigurationIntactを比較する。",
         "expectedResult": "resultがfixedとなり、configurationIntactがtrueである。",
         "observation": "修正版は参照名を拒否し、.git/configのマーカーを変更しない。",
         "hints": ["脆弱版と修正版でURLを取り違えないよう、サービス名を確認する。"]
