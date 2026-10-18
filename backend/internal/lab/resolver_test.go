@@ -22,6 +22,19 @@ func TestResolverResolvesRepositoryRegistry(t *testing.T) {
 	}
 }
 
+func TestResolverResolvesReviewedGoGitTrainingAdapter(t *testing.T) {
+	resolved, err := (Resolver{}).Resolve("../../../registry", testRegistryRevision, "reprokit/go-git-cve-2026-71557")
+	if err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	if resolved.Source.URL != "https://github.com/Saku0512/reprokit-go-git-cve-2026-71557-lab.git" {
+		t.Fatalf("Source.URL = %q", resolved.Source.URL)
+	}
+	if resolved.Source.Subdirectory != "lab" {
+		t.Fatalf("Source.Subdirectory = %q", resolved.Source.Subdirectory)
+	}
+}
+
 func TestResolverTreatsUpstreamAndForkLabsThroughTheSamePath(t *testing.T) {
 	resolver := Resolver{}
 	tests := []struct {
@@ -130,7 +143,7 @@ func TestResolverRejectsNonGitHubSource(t *testing.T) {
 	writeTestFile(t, manifestPath, string(contents))
 
 	_, err = (Resolver{}).Resolve(root, testRegistryRevision, "vulhub/httpd-cve-2021-41773")
-	if err == nil || !strings.Contains(err.Error(), "not an approved Vulhub repository") {
+	if err == nil || !strings.Contains(err.Error(), "not an approved Lab repository") {
 		t.Fatalf("Resolve() error = %v, want source host rejection", err)
 	}
 }

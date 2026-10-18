@@ -1,0 +1,166 @@
+{
+  "apiVersion": "reprokit.dev/v1alpha1",
+  "kind": "Lesson",
+  "metadata": {
+    "id": "path-traversal/go-git-loose-reference",
+    "version": "1.0.0",
+    "title": "Git参照名の検証不足で設定ファイルを書き換えられる"
+  },
+  "spec": {
+    "audience": "GoでGit連携機能を実装・運用するエンジニア",
+    "prerequisites": [
+      "Gitの参照名と.gitディレクトリの役割を説明できる",
+      "相対パスとパストラバーサルの基本を理解している"
+    ],
+    "durationMinutes": 45,
+    "objectives": [
+      "参照名がファイルシステム上の保存先へ変換される信頼境界を説明できる",
+      "脆弱版と修正版で固定の不正参照に対する結果が異なることを確認できる",
+      "パスを含む識別子をファイル操作へ渡す前の検証方針を提案できる"
+    ],
+    "case": {
+      "product": "go-git",
+      "affectedVersions": "go-git/v5 5.19.1以前。比較対象は5.19.2。",
+      "background": "go-gitのfilesystem dotgit storageはloose referenceをファイルへ保存する。脆弱版では参照名を保存先の相対パスへ利用する際、親ディレクトリへ戻る要素を十分に拒否していなかった。"
+    },
+    "evidence": {
+      "cves": ["CVE-2026-71557"],
+      "references": [
+        {
+          "type": "vendor-advisory",
+          "title": "GitHub Security Advisory GHSA-qgq7-7hm3-q39j",
+          "url": "https://github.com/advisories/GHSA-qgq7-7hm3-q39j"
+        },
+        {
+          "type": "cve-record",
+          "title": "Go vulnerability database: GO-2026-6214",
+          "url": "https://pkg.go.dev/vuln/GO-2026-6214"
+        },
+        {
+          "type": "patch",
+          "title": "go-git v5の参照名検証を追加した修正差分",
+          "url": "https://github.com/go-git/go-git/commit/4a0e66d555de5f9a30c31e2df64f445f42bd01e7"
+        },
+        {
+          "type": "other",
+          "title": "Reprokit用の固定入力Labアダプタ",
+          "url": "https://github.com/Saku0512/reprokit-go-git-cve-2026-71557-lab"
+        }
+      ]
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://github.com/jphacks/sd_2601/blob/main/LICENSE",
+      "attribution": "教材本文はJPHACKS sd_2601 contributorsが作成。go-gitはApache-2.0であり、LabアダプタはMITで公開する。原典と修正差分は上記の根拠情報に記録する。"
+    },
+    "labs": [
+      {
+        "ref": "vulnerable",
+        "labId": "reprokit/go-git-cve-2026-71557",
+        "purpose": "reproduce"
+      },
+      {
+        "ref": "fixed",
+        "labId": "reprokit/go-git-cve-2026-71557",
+        "purpose": "compare-fix"
+      }
+    ],
+    "steps": [
+      {
+        "id": "set-boundary",
+        "title": "検証の範囲を確認する",
+        "instruction": "Runnerが準備したローカルLabだけを対象にする。この演習では固定の参照名だけを使い、第三者のGitサーバー、任意のリポジトリ、ホスト上のファイルは対象にしない。",
+        "expectedResult": "固定入力だけを使う理由と、Labが一時ディレクトリ内で完結することを説明できる。",
+        "observation": "Labは参照名、書込み先、ハッシュをHTTP入力として受け取らない。",
+        "hints": ["起動前にRunnerの安全性結果とloopback接続先を確認する。"]
+      },
+      {
+        "id": "prepare-vulnerable",
+        "title": "脆弱版Labを起動する",
+        "labRef": "vulnerable",
+        "instruction": "学習画面でLabを準備・検査してから、脆弱版サービスを明示的に起動する。Runnerが表示した127.0.0.1の接続先だけを使う。",
+        "expectedResult": "脆弱版のサービスがrunningとなり、接続先がloopbackに限定されている。",
+        "observation": "準備はコンテナを起動せず、明示的な起動操作の後にだけサービスが動く。",
+        "hints": ["接続先を手入力せず、Runnerの表示値を使用する。"]
+      },
+      {
+        "id": "observe-vulnerable",
+        "title": "固定入力で脆弱版を観察する",
+        "labRef": "vulnerable",
+        "instruction": "脆弱版の接続先へPOST /api/observeを送る。本文やクエリは追加しない。レスポンスのresult、craftedReference、configurationIntactを確認する。",
+        "expectedResult": "resultがvulnerableとなり、configurationIntactがfalseである。",
+        "observation": "固定参照refs/heads/../../configが、Labの一時.git/configを上書きしたことだけが示される。",
+        "hints": ["Labはリクエストごとに一時ディレクトリを削除するため、ホストの設定は変更されない。"]
+      },
+      {
+        "id": "trace-boundary",
+        "title": "保存先への変換を追う",
+        "instruction": "参照名がloose referenceの保存先へ利用される流れを確認する。識別子に含まれる../を許容すると、保存先の基準ディレクトリからどのように逸脱するか説明する。",
+        "expectedResult": "文字列の形式検証と、ファイルシステムの保存先検証が別の責務であることを説明できる。",
+        "observation": "パス結合そのものではなく、結合前に信頼できない経路要素を拒否しないことが問題である。",
+        "hints": ["修正差分で参照名が保存前にどのように検証されるか確認する。"]
+      },
+      {
+        "id": "compare-fixed",
+        "title": "修正版で同じ固定入力を比較する",
+        "labRef": "fixed",
+        "instruction": "修正版サービスを明示的に起動し、同じくPOST /api/observeを本文なしで送る。脆弱版と同じcraftedReferenceに対するresultとconfigurationIntactを比較する。",
+        "expectedResult": "resultがfixedとなり、configurationIntactがtrueである。",
+        "observation": "修正版は参照名を拒否し、.git/configのマーカーを変更しない。",
+        "hints": ["脆弱版と修正版でURLを取り違えないよう、サービス名を確認する。"]
+      },
+      {
+        "id": "explain-remediation",
+        "title": "修正と再発防止を説明する",
+        "instruction": "パッチが不正な参照名を拒否する理由と、同種の問題を防ぐために識別子をファイル操作へ渡す境界で行うべき検証を説明する。",
+        "expectedResult": "更新先バージョン、拒否すべき入力、回帰テストの観点を分けて説明できる。",
+        "observation": "対策は出力先の文字列置換ではなく、保存先へ到達する前に安全な参照名だけを受け入れることにある。",
+        "hints": ["入力の許可形式と、基準ディレクトリから逸脱しないことの両方を検証する。"]
+      },
+      {
+        "id": "cleanup",
+        "title": "Labを停止・削除する",
+        "instruction": "学習画面からLab Sessionを停止し、提出内容を保存した後に削除する。Runnerが報告するコンテナ、ネットワーク、公開ポートの残存を確認する。",
+        "expectedResult": "Lab Sessionが停止・削除され、残存リソースの表示を確認できる。",
+        "observation": "Labの実行状態と学習の完了状態は別に管理される。",
+        "hints": ["削除前に回答の保存状態を確認する。"]
+      }
+    ],
+    "analysis": {
+      "cause": "filesystem dotgit storageがloose referenceの保存先を組み立てる際、参照名に含まれる親ディレクトリ要素を拒否せず、基準ディレクトリ外の.git/configへ到達できた。",
+      "impact": "悪意ある参照名を処理する条件では、想定した参照ファイル以外を上書きできる可能性がある。影響範囲はgo-gitを使うアプリケーションのファイル権限に制約される。",
+      "remediation": "go-git/v5を5.19.2以降へ更新する。識別子をパスへ変換する実装では、許可形式の検証と基準ディレクトリからの逸脱防止を保存前に実施する。"
+    },
+    "comparison": {
+      "vulnerable": "v5.19.1: 固定の不正参照が受理され、一時.git/configのマーカーが置き換わる。",
+      "fixed": "v5.19.2: 同じ参照を拒否し、一時.git/configのマーカーは保持される。",
+      "difference": "修正版は保存先を作る前に不正な参照名を拒否するため、親ディレクトリへ戻る要素をファイル操作へ渡さない。",
+      "fixedLabRef": "fixed"
+    },
+    "prevention": [
+      "ファイル名や参照名などの識別子をパスへ使う前に、許可する形式を明示して検証する。",
+      "パス結合後に基準ディレクトリから逸脱していないことを確認し、シンボリックリンクも含めて安全性を検証する。",
+      "親ディレクトリ要素を含む入力が拒否され、想定外のファイルが変わらないことを回帰テストにする。"
+    ],
+    "assessment": [
+      {
+        "id": "explain-cause",
+        "question": "参照名がどの信頼境界を越えて、どのように想定外の保存先へ到達しましたか。",
+        "answerExample": "参照名がfilesystem dotgit storageのloose reference保存先へ変換される境界で、../を含む要素が拒否されなかった。結果として基準のrefsディレクトリから戻り、.git/configへ到達した。",
+        "criteria": ["参照名から保存先への変換に触れる", "親ディレクトリ要素を特定する", "基準ディレクトリ外への逸脱を説明する"]
+      },
+      {
+        "id": "compare-result",
+        "question": "脆弱版と修正版でconfigurationIntactが異なることは何を示しますか。",
+        "answerExample": "脆弱版は固定の不正参照を保存処理へ渡して一時.git/configを上書きした。修正版は参照名を拒否したため、同じマーカーは変更されなかった。",
+        "criteria": ["両バージョンの結果を区別する", "拒否と設定保持を結び付ける"]
+      },
+      {
+        "id": "propose-prevention",
+        "question": "同種の欠陥を防ぐ実装上の対策と、回帰テストを提案してください。",
+        "answerExample": "識別子をパスへ使う前に許可形式を検証し、親ディレクトリ要素を拒否する。結合後の保存先が基準ディレクトリ内にあることも確認し、不正参照で既存の設定ファイルが変わらない回帰テストを追加する。",
+        "criteria": ["入力検証に触れる", "基準ディレクトリからの逸脱防止に触れる", "設定ファイルが変わらない回帰テストを示す"]
+      }
+    ]
+  }
+}

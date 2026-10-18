@@ -2,9 +2,13 @@
   "registryVersion": 1,
   "cves": {
     "CVE-2021-41773": ["vulhub/httpd-cve-2021-41773"],
+    "CVE-2026-71557": ["reprokit/go-git-cve-2026-71557"],
     "CVE-2026-54088": ["vulhub/filebrowser-cve-2026-54088"]
   },
   "labs": {
+    "reprokit/go-git-cve-2026-71557": {
+      "manifest": "manifests/reprokit/go-git-cve-2026-71557.yaml"
+    },
     "vulhub/filebrowser-cve-2026-54088": {
       "manifest": "manifests/vulhub/filebrowser-cve-2026-54088.yaml"
     },
