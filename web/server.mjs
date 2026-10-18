@@ -70,6 +70,18 @@ function cookieValue(request, name) {
   return "";
 }
 
+// Runnerは公開済み教材を選ぶためのlessonId一件だけを受け入れる。
+// 任意のクエリを静的ファイル配信へ通さない。
+function hasRunnerLessonQuery(url) {
+  const lessonIDs = url.searchParams.getAll("lessonId");
+  return (
+    url.pathname === "/runner" &&
+    lessonIDs.length === 1 &&
+    [...url.searchParams.keys()].every((key) => key === "lessonId") &&
+    /^[a-z0-9][a-z0-9._-]{0,62}\/[a-z0-9][a-z0-9._-]{0,62}$/.test(lessonIDs[0])
+  );
+}
+
 // 管理トークンはブラウザへ渡さず、Webシェル内のログインセッションからだけ利用する。
 export function createWebServer({
   runner = null,
@@ -414,7 +426,7 @@ export function createWebServer({
             }[generated[1]],
           ]
         : null);
-    if (!asset || request.method !== "GET" || url.search) {
+    if (!asset || request.method !== "GET" || (url.search && !hasRunnerLessonQuery(url))) {
       response.writeHead(404).end("not found");
       return;
     }

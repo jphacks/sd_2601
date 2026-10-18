@@ -16,6 +16,32 @@ async function keyboardClick(page, locator) {
 const vulnerable = (page) => page.getByRole("region", { name: "脆弱版", exact: true });
 const fixed = (page) => page.getByRole("region", { name: "修正版", exact: true });
 
+test("公開済みgo-git教材を指定して汎用受講画面でLabを準備できる", async ({ page }) => {
+  const fixture = await mockRunner(page, { lesson: "go-git" });
+  await page.goto("/runner?lessonId=path-traversal%2Fgo-git-loose-reference");
+
+  await expect(page.getByRole("heading", { level: 1 })).toContainText(
+    "Git参照名の検証不足で設定ファイルを書き換えられる",
+  );
+  await page.getByRole("button", { name: "学習を始める" }).click();
+  await vulnerable(page).getByRole("button", { name: "Labを準備する" }).click();
+  await expect(vulnerable(page)).toContainText("準備済み");
+  await vulnerable(page).getByRole("button", { name: "安全性を確認して起動する" }).click();
+  await page.getByRole("button", { name: "確認してLabを起動する", exact: true }).click();
+  await expect(vulnerable(page).getByRole("link", { name: /127.0.0.1:18082/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: "脆弱版のマーカーを確認する" })).toHaveCount(0);
+
+  expect(
+    fixture.calls.some(
+      (call) =>
+        call.path === "/api/labs" &&
+        call.method === "POST" &&
+        call.body.lessonId === "path-traversal/go-git-loose-reference" &&
+        call.body.labRef === "vulnerable",
+    ),
+  ).toBeTruthy();
+});
+
 test("キーボードで教材・Lab・回答・後片付けまで進み、再読み込み後も記録を保持する", async ({
   page,
 }) => {

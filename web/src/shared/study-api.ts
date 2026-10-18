@@ -48,10 +48,16 @@ export class ApiError extends Error {
 export class StudyApi {
   token: string;
   request: typeof fetch;
+  lessonID: string;
 
-  constructor(token: string, request = globalThis.fetch.bind(globalThis)) {
+  constructor(token: string, request = globalThis.fetch.bind(globalThis), lessonID = LESSON_ID) {
     this.token = token;
     this.request = request;
+    this.lessonID = lessonID;
+  }
+
+  selectLesson(lessonID: string) {
+    this.lessonID = identifier(lessonID, /^[a-z0-9][a-z0-9._-]{0,62}\/[a-z0-9][a-z0-9._-]{0,62}$/);
   }
 
   async call<T>(path: string, method = "GET", body?: unknown): Promise<T> {
@@ -81,12 +87,12 @@ export class StudyApi {
     return this.call<LessonSummary[]>("/api/lessons");
   }
   detail(version: string): Promise<LearnerLesson> {
-    const query = new URLSearchParams({ lessonId: LESSON_ID, lessonVersion: version });
+    const query = new URLSearchParams({ lessonId: this.lessonID, lessonVersion: version });
     return this.call<LearnerLesson>(`/api/lessons/detail?${query}`);
   }
   create(version: string): Promise<StudySession> {
     return this.call<StudySession>("/api/study-sessions", "POST", {
-      lessonId: LESSON_ID,
+      lessonId: this.lessonID,
       lessonVersion: version,
     });
   }
@@ -130,7 +136,7 @@ export class StudyApi {
   prepare(version: string, ref: LabRef): Promise<LabSession> {
     if (!["vulnerable", "fixed"].includes(ref)) throw new Error("未定義のLab参照です。");
     return this.call<LabSession>("/api/labs", "POST", {
-      lessonId: LESSON_ID,
+      lessonId: this.lessonID,
       lessonVersion: version,
       labRef: ref,
     });

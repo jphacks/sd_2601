@@ -2,8 +2,12 @@ import { readFile } from "node:fs/promises";
 
 // 教材をテスト内で受講者向け形式へ射影する。講師用回答はHTTPレスポンスに載せない。
 export async function mockRunner(page, options = {}) {
+  const lessonFile =
+    options.lesson === "go-git"
+      ? "go-git-loose-reference-path-traversal.json"
+      : "filebrowser-auth-hook.json";
   const source = JSON.parse(
-    await readFile(new URL("../../../lessons/filebrowser-auth-hook.json", import.meta.url)),
+    await readFile(new URL(`../../../lessons/${lessonFile}`, import.meta.url)),
   );
   const lesson = structuredClone(source);
   for (const step of lesson.spec.steps) {
@@ -92,12 +96,13 @@ export async function mockRunner(page, options = {}) {
     }
     if (path === "/api/labs") {
       const fixed = body.labRef === "fixed";
+      const goGit = lesson.metadata.id === "path-traversal/go-git-loose-reference";
       const id = fixed
         ? "22222222-2222-4222-8222-222222222222"
         : "11111111-1111-4111-8111-111111111111";
       labs[id] = {
         labSessionId: id,
-        labId: "vulhub/filebrowser-cve-2026-54088",
+        labId: goGit ? "reprokit/go-git-cve-2026-71557" : "vulhub/filebrowser-cve-2026-54088",
         state: "prepared",
         safetyChecked: !options.unsafe,
         externalExposure: false,
@@ -106,7 +111,13 @@ export async function mockRunner(page, options = {}) {
               { service: "vulnerable", address: "127.0.0.1", port: 18080 },
               { service: "fixed", address: "127.0.0.1", port: 18081 },
             ]
-          : [{ service: "filebrowser", address: "127.0.0.1", port: fixed ? 18081 : 18080 }],
+          : [
+              {
+                service: goGit ? (fixed ? "fixed" : "vulnerable") : "filebrowser",
+                address: "127.0.0.1",
+                port: fixed ? 18083 : goGit ? 18082 : 18080,
+              },
+            ],
         resources: { containers: [], networks: [], volumes: [] },
         retainedVolumes: [],
         failure: null,

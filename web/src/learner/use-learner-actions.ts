@@ -56,6 +56,10 @@ export function createLearnerActionHandler({
         update({ view: "note" });
         break;
       case "open":
+        if (v === "gg") {
+          window.location.assign("/runner?lessonId=path-traversal%2Fgo-git-loose-reference");
+          break;
+        }
         update({ view: "detail", p: -1 });
         break;
       case "begin":

@@ -84,7 +84,7 @@ export const L: SampleLesson[] = [
     product: "go-git v5.19.1",
     ports: [18082, 18083],
     sha: "d56a2e8",
-    ready: false,
+    ready: true,
   },
 ];
 export const PH = [
