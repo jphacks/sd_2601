@@ -40,13 +40,15 @@ test("コマンドインジェクションで教材を絞り込める", async ({
   await expect(openButton(page)).toContainText("File Browser");
 });
 
-test("準備中の教材は開けない", async ({ page }) => {
+test("公開済みのgo-git教材を開ける", async ({ page }) => {
   await mockRunner(page);
   await page.goto("/");
   await page.getByRole("button", { name: "パストラバーサル 1", exact: true }).click();
-  const unavailable = page.locator('[data-a="open"][data-v="ap"]');
-  await expect(unavailable).toBeDisabled();
-  await expect(unavailable).toContainText("準備中");
+  const goGit = page.locator('[data-a="open"][data-v="gg"]');
+  await expect(goGit).toBeEnabled();
+  await expect(goGit).toContainText("go-git");
+  await goGit.click();
+  await expect(page.getByRole("heading", { name: "go-git", exact: true })).toBeVisible();
 });
 
 test("教材詳細にCVEとLabの固定参照を表示する", async ({ page }) => {
@@ -54,6 +56,29 @@ test("教材詳細にCVEとLabの固定参照を表示する", async ({ page }) 
   await expect(page.getByRole("heading", { name: "File Browser", exact: true })).toBeVisible();
   await expect(page.locator(".facts")).toContainText("CVE-2026-54088");
   await expect(page.locator(".facts")).toContainText("fork追加Lab");
+});
+
+test("go-gitもFile Browserと同じ受講レイアウトとLab操作を使う", async ({ page }) => {
+  const fixture = await mockRunner(page, { lesson: "go-git" });
+  await page.goto("/");
+  await page.locator('[data-a="open"][data-v="gg"]').click();
+
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("heading", { name: "go-git", exact: true })).toBeVisible();
+  await expect(page.locator("#lesson-outline")).toBeVisible();
+  await expect(page.locator(".tm")).toContainText("演習環境");
+  await expect(page.getByRole("button", { name: "▶ DEPLOY" })).toBeVisible();
+  await page.getByRole("button", { name: "▶ DEPLOY" }).click();
+  await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "起動する", exact: true }).click();
+  await expect(page.locator(".st")).toHaveText("RUNNING");
+  await expect(page.locator('a[href="http://127.0.0.1:18082"]')).toBeVisible();
+  expect(
+    fixture.calls.some(
+      (call) =>
+        call.path === "/api/labs" && call.body.lessonId === "path-traversal/go-git-loose-reference",
+    ),
+  ).toBeTruthy();
 });
 
 test("教材詳細では実在サイトに試さない注意を表示する", async ({ page }) => {

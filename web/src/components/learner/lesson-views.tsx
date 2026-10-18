@@ -1,15 +1,19 @@
-import type { StateProps } from "../../learner/lesson-data.ts";
+import type { LearnerState, SampleLesson } from "../../learner/lesson-data.ts";
 import { useEffect, useRef } from "react";
-import { L } from "../../learner/lesson-data.ts";
 import { LessonEnvironment } from "./lesson-environment.tsx";
+import { GenericLessonPhaseList } from "./generic-lesson-phases.tsx";
 import { LessonOutline } from "./lesson-outline.tsx";
 import { LessonPhaseList } from "./lesson-phase-list.tsx";
 
 export function LessonDetail({
   state: S,
+  lesson,
   onPhaseChange,
-}: StateProps & { onPhaseChange: (phase: number) => void }) {
-  const lesson = L.find((item) => item.id === "fb")!;
+}: {
+  state: LearnerState;
+  lesson: SampleLesson;
+  onPhaseChange: (phase: number) => void;
+}) {
   const detail = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -46,7 +50,7 @@ export function LessonDetail({
         <button className="back lesson-back" data-a="home">
           ← 教材一覧へ戻る
         </button>
-        <LessonOutline state={S} />
+        <LessonOutline state={S} lesson={lesson} />
         <div className="in">
           <h1 className="t">{lesson.title}</h1>
           <div className="facts" style={{ marginTop: "8px" }}>
@@ -71,17 +75,10 @@ export function LessonDetail({
             <h2>{"概要"}</h2>
           </div>
           <div className="prb">
+            {lesson.overview.map((paragraph) => (
+              <p key={paragraph}>{paragraph}</p>
+            ))}
             <p>
-              {"File Browser 2.63.5 は、ブラウザからファイルを管理できるWebアプリケーションです。"}
-            </p>
-            <p>
-              {lesson.cve}
-              {
-                " は、フック認証の設定でユーザー名やパスワードを外部コマンドへ渡す際、入力値がコマンドとして解釈されるコマンドインジェクションの脆弱性です。認証処理を通じて、意図しないコマンドが実行されるおそれがあります。"
-              }
-            </p>
-            <p>
-              {"この教材では脆弱版での挙動を観察し、原因と修正版での変化を確認します。"}
               <b>{"Labの画面は別タブで開きます。"}</b>
               {"実在のサイトには試さないでください。"}
             </p>
@@ -91,7 +88,11 @@ export function LessonDetail({
               {S.revealed < 0 ? "学習を開始する ↓" : "Step 1を読み返す ↓"}
             </button>
           </div>
-          <LessonPhaseList lesson={lesson} state={S} />
+          {lesson.id === "fb" ? (
+            <LessonPhaseList lesson={lesson} state={S} />
+          ) : (
+            <GenericLessonPhaseList lesson={lesson} state={S} />
+          )}
         </div>
       </div>
     </div>

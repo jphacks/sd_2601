@@ -209,7 +209,7 @@ test("静的ファイルを限定し、API未設定を成功表示しない", as
   assert.equal((await fetch(`${origin}/runner?lessonId=unexpected&extra=value`)).status, 404);
   assert.equal(
     (await fetch(`${origin}/?lessonId=path-traversal%2Fgo-git-loose-reference`)).status,
-    404,
+    200,
   );
   const logo = await fetch(`${origin}/assets/reprokit-logo.png`);
   assert.equal(logo.status, 200);

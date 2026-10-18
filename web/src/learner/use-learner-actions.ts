@@ -1,7 +1,7 @@
 import type { Dispatch, MouseEvent, MutableRefObject, SetStateAction } from "react";
 import type { LabRef } from "../shared/types.ts";
 import type { LearnerState } from "./lesson-data.ts";
-import { PH } from "./lesson-data.ts";
+import { lessonByID } from "./lesson-data.ts";
 
 interface UseLearnerActionsOptions {
   state: LearnerState;
@@ -56,11 +56,8 @@ export function createLearnerActionHandler({
         update({ view: "note" });
         break;
       case "open":
-        if (v === "gg") {
-          window.location.assign("/runner?lessonId=path-traversal%2Fgo-git-loose-reference");
-          break;
-        }
-        update({ view: "detail", p: -1 });
+        if (!v || !["fb", "gg"].includes(v)) break;
+        update({ view: "detail", lesson: v, p: -1, revealed: -1, done: {} });
         break;
       case "begin":
         pendingPhaseRef.current = { phase: 0 };
@@ -78,15 +75,16 @@ export function createLearnerActionHandler({
         break;
       case "next": {
         const phase = Number(i);
-        const next = Math.min(PH.length - 1, phase + 1);
-        if (phase < PH.length - 1) pendingPhaseRef.current = { phase: next, previous: phase };
+        const phaseCount = lessonByID(state.lesson).phases.length;
+        const next = Math.min(phaseCount - 1, phase + 1);
+        if (phase < phaseCount - 1) pendingPhaseRef.current = { phase: next, previous: phase };
         setState((previous) => ({
           ...previous,
           done: { ...previous.done, [phase]: true },
           revealed: Math.max(previous.revealed, next),
           p: next,
         }));
-        if (phase === PH.length - 1) setMessage("お疲れさまでした。DESTROYでLabを片付けましょう");
+        if (phase === phaseCount - 1) setMessage("お疲れさまでした。DESTROYでLabを片付けましょう");
         break;
       }
       case "prev":
