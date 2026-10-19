@@ -1,5 +1,5 @@
 import type { RefObject } from "react";
-import type { LearnerState } from "../../learner/lesson-data.ts";
+import type { LearnerState, SampleLesson } from "../../learner/lesson-data.ts";
 import { LabConsole } from "./lab-console.tsx";
 import { LessonOutline } from "./lesson-outline.tsx";
 
@@ -59,10 +59,12 @@ export function LearnerHeader({
 
 export function LearnerMenuDialog({
   state,
+  lesson,
   dialogRef,
   onOpenChange,
 }: {
   state: LearnerState;
+  lesson: SampleLesson;
   dialogRef: RefObject<HTMLDialogElement | null>;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -88,7 +90,7 @@ export function LearnerMenuDialog({
           {"×"}
         </button>
       </div>
-      <LessonOutline state={state} id="mobile-lesson-outline" />
+      <LessonOutline state={state} lesson={lesson} id="mobile-lesson-outline" />
     </dialog>
   );
 }

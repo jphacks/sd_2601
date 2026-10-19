@@ -48,6 +48,15 @@ func TestLifecycleServicePreparesOnlyConfiguredLessonReference(t *testing.T) {
 	if err != nil || session.LabID != fixed.Prepared.LabID || session.State != runtime.Prepared {
 		t.Fatalf("Prepare = %#v, %v", session, err)
 	}
+
+	fixed.Prepared.LabID = "reprokit/go-git-cve-2026-71557"
+	if _, err := NewLifecycleService(manager, fixed); err != nil {
+		t.Fatalf("NewLifecycleService() with reviewed go-git Lab error = %v", err)
+	}
+	fixed.Prepared.LabID = "example/unreviewed"
+	if _, err := NewLifecycleService(manager, fixed); err == nil {
+		t.Fatal("unreviewed Lab was accepted")
+	}
 }
 
 type runnerProvider struct{}

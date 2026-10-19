@@ -17,3 +17,17 @@ test("File Browser Lesson matches the schema and only references its designated 
     ],
   );
 });
+
+test("go-git Lesson matches the schema and uses one comparison Lab", () => {
+  const lesson = JSON.parse(
+    fs.readFileSync(path.join(__dirname, "go-git-loose-reference-path-traversal.json"), "utf8"),
+  );
+  assert.deepEqual(validateLesson(lesson), []);
+  assert.deepEqual(
+    lesson.spec.labs.map(({ ref, labId, purpose }) => ({ ref, labId, purpose })),
+    [
+      { ref: "vulnerable", labId: "reprokit/go-git-cve-2026-71557", purpose: "reproduce" },
+      { ref: "fixed", labId: "reprokit/go-git-cve-2026-71557", purpose: "compare-fix" },
+    ],
+  );
+});

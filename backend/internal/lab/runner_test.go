@@ -62,3 +62,21 @@ func TestToPreparedLabRejectsTamperedMaterializedCompose(t *testing.T) {
 		t.Fatal("tampered materialized source was accepted")
 	}
 }
+
+func TestToPreparedLabAllowsReviewedGoGitLab(t *testing.T) {
+	manifest := []byte("apiVersion: reprokit.dev/v1alpha1\nkind: Lab\n")
+	manifestDigest := sha256.Sum256(manifest)
+	compose := []byte("services:\n  vulnerable:\n    image: example/app@sha256:" + strings.Repeat("a", 64) + "\n")
+	composeDigest := sha256.Sum256(compose)
+	resolved := ResolvedLab{
+		ID:       "reprokit/go-git-cve-2026-71557",
+		Source:   Source{URL: "https://github.com/Saku0512/reprokit-go-git-cve-2026-71557-lab.git", Revision: strings.Repeat("a", 40), Subdirectory: "lab"},
+		Runtime:  Runtime{File: "compose.yaml", Platform: "linux/amd64", Guardrails: security.Guardrails{MaxRuntimeSeconds: 1800, CPUCores: 1, MemoryMiB: 512, PIDs: 128, DiskMiB: 1024, Egress: "none"}},
+		Registry: RegistryReference{Revision: strings.Repeat("b", 40), ManifestPath: "manifests/reprokit/go-git-cve-2026-71557.yaml"},
+		Manifest: ManifestReference{SHA256: hex.EncodeToString(manifestDigest[:]), Bytes: manifest},
+	}
+	materialized := MaterializedSource{URL: resolved.Source.URL, Revision: resolved.Source.Revision, Subdirectory: resolved.Source.Subdirectory, ComposeSHA256: hex.EncodeToString(composeDigest[:]), RuntimeCompose: compose, Files: []SourceFile{{Path: "compose.yaml", SHA256: hex.EncodeToString(composeDigest[:])}}}
+	if _, err := ToPreparedLab(resolved, materialized); err != nil {
+		t.Fatalf("ToPreparedLab() with reviewed go-git Lab error = %v", err)
+	}
+}

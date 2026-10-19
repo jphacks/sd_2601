@@ -45,7 +45,7 @@ interface MenuItem {
 const labRefs: LabRef[] = ["vulnerable", "fixed"];
 let lesson: LearnerLesson;
 let study: StudySession | undefined;
-let training: { assignment: Assignment };
+let training: { assignment?: Assignment } = {};
 let storageKey: string;
 let drafts: Drafts = {};
 let bindings: Partial<Record<LabRef, string>> = {};
@@ -64,6 +64,16 @@ let generation = 0,
 let page = "overview",
   busy = false,
   loadFailed = false;
+const requestedLessonID = (() => {
+  const values = new URLSearchParams(window.location.search).getAll("lessonId");
+  if (values.length === 0) return LESSON_ID;
+  if (
+    values.length !== 1 ||
+    !/^[a-z0-9][a-z0-9._-]{0,62}\/[a-z0-9][a-z0-9._-]{0,62}$/.test(values[0])
+  )
+    return null;
+  return values[0];
+})();
 const titles = { vulnerable: "脆弱版", fixed: "修正版" };
 const escape = (value: unknown) =>
   String(value ?? "").replace(
@@ -120,7 +130,7 @@ function render(focusId?: string) {
   app.innerHTML = `
     <div class="lesson-header"><div><p class="eyebrow">実在事例で学ぶ / ${escape(lesson.spec.case.product)}</p>
       <h1>${escape(lesson.metadata.title)}</h1>
-      <p class="muted">${lesson.spec.durationMinutes}分 · 開発者向け · 教材 v${escape(lesson.metadata.version)} · 研修状態: ${escape(training?.assignment.status ?? "未取得")}</p></div>
+      <p class="muted">${lesson.spec.durationMinutes}分 · 開発者向け · 教材 v${escape(lesson.metadata.version)} · 研修状態: ${escape(training.assignment?.status ?? "未割り当て")}</p></div>
       <div class="progress-summary"><span>学習手順の記録</span><strong>${study?.stepIndex ?? 0}<small> / ${lesson.spec.steps.length}</small></strong><progress aria-label="学習手順の進捗" max="${lesson.spec.steps.length}" value="${study?.stepIndex ?? 0}"></progress></div></div>
     <div class="workspace">
       <nav class="lesson-nav" aria-label="学習の順序"><p class="eyebrow">学習の流れ</p><ol>${items.map((item, index) => `<li><button id="nav-${item.id}" data-page="${item.id}" ${unlocked(item) ? "" : "disabled"} ${page === item.id ? 'aria-current="step"' : ""}><span class="step-number">${String(index + 1).padStart(2, "0")}</span><span>${escape(item.title)}</span></button></li>`).join("")}</ol></nav>
@@ -177,7 +187,13 @@ function content() {
   const observed = drafts[`observation:${page}`] ?? "";
   const revealed = currentStudy().hints?.[page] ?? [];
   const markerRef =
-    page === "observe-marker" ? "vulnerable" : page === "compare-fixed" ? "fixed" : null;
+    lesson.metadata.id === LESSON_ID
+      ? page === "observe-marker"
+        ? "vulnerable"
+        : page === "compare-fixed"
+          ? "fixed"
+          : null
+      : null;
   return `
     ${step.labRef ? `<span class="tag ${step.labRef === "fixed" ? "fixed" : ""}">対象：${titles[step.labRef]}</span>` : ""}
     <h3>手順</h3>${text(step.instruction)}
@@ -340,12 +356,15 @@ function bindEvents() {
     perform(async () => {
       if (!study) {
         study = resumeId ? await api.study(resumeId) : await api.create(lesson.metadata.version);
-        if (study.lessonId !== LESSON_ID || study.lessonVersion !== lesson.metadata.version)
+        if (
+          study.lessonId !== lesson.metadata.id ||
+          study.lessonVersion !== lesson.metadata.version
+        )
           throw new Error("受講セッションの教材が一致しません。");
         resumeId = undefined;
         persist();
       }
-      training.assignment = await api.startTraining();
+      if (training.assignment) training.assignment = await api.startTraining();
       const index = Math.min(currentStudy().stepIndex, lesson.spec.steps.length - 1);
       page = lesson.spec.steps[index].id;
       announce("受講セッションを読み込みました。");
@@ -401,9 +420,9 @@ function bindEvents() {
           question.id,
           drafts[`answer:${question.id}`] ?? currentStudy().answers[question.id],
         );
-      if (["assigned", "needs_retry"].includes(training.assignment.status))
+      if (training.assignment && ["assigned", "needs_retry"].includes(training.assignment.status))
         training.assignment = await api.startTraining();
-      if (training.assignment.status === "in_progress") {
+      if (training.assignment?.status === "in_progress") {
         await api.submitTraining(currentStudy().id);
         training = await api.trainingAssignment();
       }
@@ -489,7 +508,7 @@ async function labAction(ref: string | undefined, operation: string | undefined)
         if (operation === "prepare") {
           const reference = await api.binding(currentStudy().id, prepareRef);
           if (
-            reference.lessonId !== LESSON_ID ||
+            reference.lessonId !== lesson.metadata.id ||
             reference.lessonVersion !== lesson.metadata.version ||
             reference.labRef !== prepareRef
           )
@@ -558,23 +577,25 @@ function sameComparisonLab() {
 async function load() {
   errorBox.hidden = true;
   try {
+    if (!requestedLessonID) throw new Error("教材リンクが正しくありません。");
     const catalog = await api.lessons();
-    const summary = catalog.find((item) => item.id === LESSON_ID);
-    if (!summary) throw new Error("公開済みのFile Browser教材がありません。");
+    const summary = catalog.find((item) => item.id === requestedLessonID);
+    if (!summary) throw new Error("指定された教材は公開されていません。");
+    api.selectLesson(summary.id);
     lesson = await api.detail(summary.version);
     training = await api.trainingAssignment();
     if (
-      lesson.metadata.id !== LESSON_ID ||
+      lesson.metadata.id !== summary.id ||
       lesson.metadata.version !== summary.version ||
       !lesson.spec.labs.every((lab) => ["vulnerable", "fixed"].includes(lab.ref))
     )
       throw new Error("未対応の教材またはLab参照です。");
     if (
-      training.assignment.lessonId !== lesson.metadata.id ||
-      training.assignment.lessonVersion !== lesson.metadata.version
+      training.assignment?.lessonId !== lesson.metadata.id ||
+      training.assignment?.lessonVersion !== lesson.metadata.version
     )
-      throw new Error("割り当てられた研修と教材が一致しません。");
-    storageKey = `${LESSON_ID}@${lesson.metadata.version}`;
+      training = {};
+    storageKey = `${lesson.metadata.id}@${lesson.metadata.version}`;
     const record = localRecord<SavedRecord>(storageKey, {});
     drafts = record.drafts ?? {};
     bindings = record.bindings ?? {};
@@ -582,7 +603,10 @@ async function load() {
       resumeId = record.studyId;
       try {
         study = await api.study(record.studyId);
-        if (study.lessonId !== LESSON_ID || study.lessonVersion !== lesson.metadata.version)
+        if (
+          study.lessonId !== lesson.metadata.id ||
+          study.lessonVersion !== lesson.metadata.version
+        )
           throw new Error("保存された受講セッションの教材が一致しません。");
       } catch (error) {
         study = undefined;

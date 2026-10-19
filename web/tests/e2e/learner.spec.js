@@ -16,6 +16,16 @@ async function keyboardClick(page, locator) {
 const vulnerable = (page) => page.getByRole("region", { name: "脆弱版", exact: true });
 const fixed = (page) => page.getByRole("region", { name: "修正版", exact: true });
 
+test("go-gitのRunnerリンクを共通受講画面へ統一する", async ({ page }) => {
+  await mockRunner(page, { lesson: "go-git" });
+  await page.goto("/runner?lessonId=path-traversal%2Fgo-git-loose-reference");
+
+  await expect(page).toHaveURL(/\/?lessonId=path-traversal%2Fgo-git-loose-reference$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("go-git");
+  await expect(page.locator("#lesson-outline")).toBeVisible();
+  await expect(page.locator(".tm")).toContainText("演習環境");
+});
+
 test("キーボードで教材・Lab・回答・後片付けまで進み、再読み込み後も記録を保持する", async ({
   page,
 }) => {

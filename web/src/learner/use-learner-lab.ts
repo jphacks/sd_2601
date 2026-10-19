@@ -1,13 +1,12 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { LabRef, LabSession } from "../shared/types.ts";
-import type { LearnerState } from "./lesson-data.ts";
+import type { LearnerState, SampleLesson } from "./lesson-data.ts";
 import { useEffect, useRef } from "react";
 import { ApiError, canStart, StudyApi } from "../shared/study-api.ts";
 
-const labSessionStorageKey = "reprokit:sample:filebrowser:lab-session";
-
 interface UseLearnerLabOptions {
   api: StudyApi;
+  lesson: SampleLesson;
   state: LearnerState;
   update: (patch: Partial<LearnerState>) => void;
   setState: Dispatch<SetStateAction<LearnerState>>;
@@ -21,18 +20,18 @@ function labState(session: LabSession | null): LearnerState["lab"] {
   return "ready";
 }
 
-function rememberLabSession(session: LabSession) {
+function rememberLabSession(storageKey: string, session: LabSession) {
   if (!session?.labSessionId) return;
   try {
-    window.localStorage.setItem(labSessionStorageKey, session.labSessionId);
+    window.localStorage.setItem(storageKey, session.labSessionId);
   } catch {
     // Lab Sessionは画面内の状態だけで継続する。
   }
 }
 
-function forgetLabSession() {
+function forgetLabSession(storageKey: string) {
   try {
-    window.localStorage.removeItem(labSessionStorageKey);
+    window.localStorage.removeItem(storageKey);
   } catch {
     // 保存先が使えない場合も、削除操作の結果は維持する。
   }
@@ -51,10 +50,18 @@ function resetLabState(): Partial<LearnerState> {
   };
 }
 
-export function useLearnerLab({ api, state, update, setState, setMessage }: UseLearnerLabOptions) {
+export function useLearnerLab({
+  api,
+  lesson,
+  state,
+  update,
+  setState,
+  setMessage,
+}: UseLearnerLabOptions) {
   const deployProgressTimer = useRef<number | null>(null);
   const deployProgressValue = useRef(0);
   const comparisonRequests = useRef({ vulnerable: 0, fixed: 0 });
+  const storageKey = `reprokit:sample:${lesson.lessonId}:${lesson.version}:lab-session`;
 
   useEffect(
     () => () => {
@@ -68,7 +75,7 @@ export function useLearnerLab({ api, state, update, setState, setMessage }: UseL
     let cancelled = false;
     let id;
     try {
-      id = window.localStorage.getItem(labSessionStorageKey);
+      id = window.localStorage.getItem(storageKey);
     } catch {
       return undefined;
     }
@@ -85,12 +92,12 @@ export function useLearnerLab({ api, state, update, setState, setMessage }: UseL
         }));
       })
       .catch(() => {
-        if (!cancelled) forgetLabSession();
+        if (!cancelled) forgetLabSession(storageKey);
       });
     return () => {
       cancelled = true;
     };
-  }, [api, setState]);
+  }, [api, setState, storageKey]);
 
   function advanceDeployProgress(target: number): Promise<void> {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -150,20 +157,20 @@ export function useLearnerLab({ api, state, update, setState, setMessage }: UseL
     try {
       let runtime = state.runtime;
       if (!canStart(runtime))
-        runtime = await withDeployProgress(api.prepare("1.0.0", "vulnerable"), 10);
+        runtime = await withDeployProgress(api.prepare(lesson.version, "vulnerable"), 10);
       if (!canStart(runtime))
         throw new Error("安全性とloopback公開を確認できないため、Labを起動できません。");
-      rememberLabSession(runtime);
+      rememberLabSession(storageKey, runtime);
       update({ runtime });
       runtime = await withDeployProgress(api.start(runtime.labSessionId), 19);
       if (runtime.state !== "running") throw new Error("Labの起動状態を確認できませんでした。");
-      rememberLabSession(runtime);
+      rememberLabSession(storageKey, runtime);
       deployProgressValue.current = 20;
       update({ lab: "running", runtime, seg: 20 });
       setMessage("Labが起動しました。「別タブで開く」から画面を開けます");
     } catch (error) {
       const runtime = error instanceof ApiError ? error.session : undefined;
-      if (runtime?.labSessionId) rememberLabSession(runtime);
+      if (runtime?.labSessionId) rememberLabSession(storageKey, runtime);
       update({
         lab: runtime ? labState(runtime) : "ready",
         runtime: runtime ?? state.runtime,
@@ -179,7 +186,7 @@ export function useLearnerLab({ api, state, update, setState, setMessage }: UseL
     update({ lab: "deploying", seg: 16, labFailure: null });
     try {
       const runtime = await api.stop(state.runtime.labSessionId);
-      rememberLabSession(runtime);
+      rememberLabSession(storageKey, runtime);
       update({
         lab: labState(runtime),
         runtime,
@@ -191,7 +198,7 @@ export function useLearnerLab({ api, state, update, setState, setMessage }: UseL
       setMessage("Labを停止しました");
     } catch (error) {
       const runtime = error instanceof ApiError ? error.session : undefined;
-      if (runtime?.labSessionId) rememberLabSession(runtime);
+      if (runtime?.labSessionId) rememberLabSession(storageKey, runtime);
       update({
         lab: runtime ? labState(runtime) : "running",
         runtime: runtime ?? state.runtime,
@@ -211,12 +218,12 @@ export function useLearnerLab({ api, state, update, setState, setMessage }: UseL
         state.vol === "keep" ? "retain" : "delete",
       );
       if (runtime.state !== "deleted") throw new Error("Labの削除状態を確認できませんでした。");
-      forgetLabSession();
+      forgetLabSession(storageKey);
       update({ ...resetLabState(), lab: "ready", runtime: null });
       setMessage(`削除しました（Volume：${state.vol === "keep" ? "保持" : "削除"}）`);
     } catch (error) {
       const runtime = error instanceof ApiError ? error.session : undefined;
-      if (runtime?.labSessionId) rememberLabSession(runtime);
+      if (runtime?.labSessionId) rememberLabSession(storageKey, runtime);
       update({
         lab: runtime ? labState(runtime) : "failed",
         runtime: runtime ?? state.runtime,

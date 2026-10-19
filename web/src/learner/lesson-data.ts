@@ -13,6 +13,8 @@ export interface ComparisonObservation {
 
 export interface SampleLesson {
   id: string;
+  lessonId: string;
+  version: string;
   cve: string;
   title: string;
   sub: string;
@@ -23,10 +25,13 @@ export interface SampleLesson {
   sha: string;
   ready: boolean;
   affectedData?: { type: string; content: string }[];
+  overview: string[];
+  phases: readonly [string, string][];
 }
 
 export interface LearnerState {
   view: "list" | "detail" | "notes" | "note";
+  lesson: string;
   cat: string;
   p: number;
   revealed: number;
@@ -63,6 +68,8 @@ export interface PhaseProps extends StateProps {
 export const L: SampleLesson[] = [
   {
     id: "fb",
+    lessonId: "command-injection/filebrowser-auth-hook",
+    version: "1.0.0",
     cve: "CVE-2026-54088",
     title: "File Browser",
     affectedData: [],
@@ -73,18 +80,46 @@ export const L: SampleLesson[] = [
     ports: [18080, 18081],
     sha: "a94285e",
     ready: true,
+    overview: [
+      "File Browser 2.63.5 は、ブラウザからファイルを管理できるWebアプリケーションです。",
+      "CVE-2026-54088 は、フック認証の設定でユーザー名やパスワードを外部コマンドへ渡す際、入力値がコマンドとして解釈されるコマンドインジェクションの脆弱性です。認証処理を通じて、意図しないコマンドが実行されるおそれがあります。",
+      "この教材では脆弱版での挙動を観察し、原因と修正版での変化を確認します。",
+    ],
+    phases: [
+      ["ログイン拒否を確認する", "認証前の処理を観察する"],
+      ["脆弱性を再現する", "ガイドに沿って検証"],
+      ["処理を見直す", "判断が抜けた地点を探す"],
+      ["自分でコードを修正する", "修正箇所を探して編集する"],
+      ["公式パッチと照らす", "修正差分と見比べる"],
+      ["修正版の挙動を比較する", "同じ操作で防がれる"],
+    ],
   },
   {
-    id: "ap",
-    cve: "CVE-2021-41773",
-    title: "Beyond the Alias",
-    sub: "Apacheのパス正規化で、想定外のファイルが読める",
+    id: "gg",
+    lessonId: "path-traversal/go-git-loose-reference",
+    version: "1.0.0",
+    cve: "CVE-2026-71557",
+    title: "go-git",
+    sub: "Git参照名の検証不足で、想定外の設定ファイルが書き換わる",
     cat: "パストラバーサル",
-    src: "upstream由来Lab",
-    product: "Apache HTTP Server 2.4.49",
-    ports: [8082],
-    sha: "a94285e",
-    ready: false,
+    src: "Reprokit追加Lab",
+    product: "go-git v5.19.1",
+    ports: [18082, 18083],
+    sha: "d56a2e8",
+    ready: true,
+    overview: [
+      "go-git は Go から Git リポジトリを扱うためのライブラリです。",
+      "CVE-2026-71557 は、loose reference の保存先を作る際に参照名の親ディレクトリ要素を十分に拒否しなかったパストラバーサルです。想定外の .git/config を書き換えられる可能性があります。",
+      "この教材では固定の不正参照を使い、脆弱版と修正版で設定ファイルが保たれるかを比較します。",
+    ],
+    phases: [
+      ["検証の範囲を確認する", "固定入力と隔離環境を確認する"],
+      ["脆弱版を起動する", "ローカルLabを明示的に起動する"],
+      ["脆弱版を観察する", "固定参照による結果を確認する"],
+      ["保存先への変換を追う", "参照名とパスの境界を理解する"],
+      ["修正版と比較する", "同じ固定入力が拒否されることを確認する"],
+      ["修正と再発防止を整理する", "入力検証と回帰テストを考える"],
+    ],
   },
 ];
 export const PH = [
@@ -95,6 +130,10 @@ export const PH = [
   ["公式パッチと照らす", "修正差分と見比べる"],
   ["修正版の挙動を比較する", "同じ操作で防がれる"],
 ];
+
+export function lessonByID(id: string) {
+  return L.find((lesson) => lesson.id === id) ?? L[0];
+}
 export const NODES = [
   ["ログイン要求を受け取る", "POST /api/login", "ユーザー名・パスワードが届く", "u", "外部入力"],
   ["Hook Authenticationが呼ばれる", "認証方式の分岐", "管理者設定のフック認証へ", "", "内部"],
@@ -173,6 +212,7 @@ export const TRACE_DETAILS = [
 ];
 export const initialState: LearnerState = {
   view: "list",
+  lesson: "fb",
   cat: "all",
   p: -1,
   revealed: -1,

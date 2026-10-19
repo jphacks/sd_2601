@@ -6,7 +6,7 @@ import { ConsoleDialog, LearnerHeader, LearnerMenuDialog } from "./learner-chrom
 import { LabModal } from "./lab-modal.tsx";
 import { LessonDetail } from "./lesson-views.tsx";
 import { NoteEditor, NoteLibrary } from "../../learner/learning-notes.tsx";
-import { L } from "../../learner/lesson-data.ts";
+import { lessonByID } from "../../learner/lesson-data.ts";
 
 interface LearnerShellProps {
   state: LearnerState;
@@ -36,8 +36,6 @@ interface LearnerShellProps {
   onNoteBack: () => void;
 }
 
-const sampleLesson = L.find((lesson) => lesson.id === "fb")!;
-
 export function LearnerShell({
   state,
   dark,
@@ -65,6 +63,7 @@ export function LearnerShell({
   onNoteRead,
   onNoteBack,
 }: LearnerShellProps) {
+  const lesson = lessonByID(state.lesson);
   return (
     <div onClick={onAction}>
       <div
@@ -80,11 +79,11 @@ export function LearnerShell({
         <div id="view" ref={viewRef} style={{ minHeight: 0, overflow: "hidden" }}>
           {state.view === "list" ? <LessonList state={state} /> : null}
           {state.view === "detail" ? (
-            <LessonDetail state={state} onPhaseChange={onPhaseChange} />
+            <LessonDetail state={state} lesson={lesson} onPhaseChange={onPhaseChange} />
           ) : null}
           {state.view === "notes" ? (
             <NoteLibrary
-              lesson={sampleLesson}
+              lesson={lessonByID("fb")}
               note={note}
               failure={noteFailure}
               onEdit={onNoteEdit}
@@ -93,7 +92,7 @@ export function LearnerShell({
           ) : null}
           {state.view === "note" ? (
             <NoteEditor
-              lesson={sampleLesson}
+              lesson={lessonByID("fb")}
               note={note}
               status={noteStatus}
               failure={noteFailure}
@@ -107,7 +106,12 @@ export function LearnerShell({
         </div>
       </div>
       {state.view === "detail" && (
-        <LearnerMenuDialog state={state} dialogRef={menuRef} onOpenChange={onMenuOpenChange} />
+        <LearnerMenuDialog
+          state={state}
+          lesson={lesson}
+          dialogRef={menuRef}
+          onOpenChange={onMenuOpenChange}
+        />
       )}
       <ConsoleDialog
         state={state}

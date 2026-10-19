@@ -122,8 +122,16 @@ func TestRealCoreWiringDefersPreparationAndRestoresAfterRestart(t *testing.T) {
 	requestJSON(t, origin, "", http.MethodGet, "/api/lessons", nil, 401, nil)
 	var catalog []map[string]any
 	requestJSON(t, origin, token, http.MethodGet, "/api/lessons", nil, 200, &catalog)
-	if len(catalog) != 1 || catalog[0]["id"] != lessonID || fetches.Load() != 0 || provider.inspections.Load() != 0 {
+	if len(catalog) != 2 || fetches.Load() != 0 || provider.inspections.Load() != 0 {
 		t.Fatal("startup or lesson read touched Lab execution")
+	}
+	lessonIDs := map[string]bool{}
+	for _, item := range catalog {
+		id, _ := item["id"].(string)
+		lessonIDs[id] = true
+	}
+	if !lessonIDs[lessonID] || !lessonIDs[goGitLessonID] {
+		t.Fatalf("catalog = %#v, want both reviewed Lessons", catalog)
 	}
 	requestJSON(t, origin, token, http.MethodPost, "/api/labs", map[string]any{"lessonId": lessonID, "lessonVersion": lessonVersion, "labRef": "vulnerable", "command": "id"}, 400, nil)
 	if fetches.Load() != 0 {
@@ -160,6 +168,26 @@ func TestRealCoreWiringDefersPreparationAndRestoresAfterRestart(t *testing.T) {
 	requestJSON(t, newOrigin, newToken, http.MethodDelete, "/api/labs/"+session.ID+"?volumePolicy=retain", nil, 200, &session)
 	if session.State != runtime.Deleted || provider.deletes.Load() != 1 {
 		t.Fatal("Delete did not reach the provider")
+	}
+}
+
+func TestGoGitLessonPreparesItsReviewedComparisonLab(t *testing.T) {
+	ctx := context.Background()
+	provider := &harmlessProvider{}
+	var fetches atomic.Int32
+	loader := func(ctx context.Context, resolved lab.ResolvedLab, destination string) (lab.MaterializedSource, error) {
+		fetches.Add(1)
+		return harmlessSource(ctx, resolved, destination)
+	}
+	app, err := newApplication(ctx, configuration{repository: repositoryFixture(t), state: filepath.Join(t.TempDir(), "state")}, provider, loader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	origin := serveApplication(t, app)
+	var session runtime.Session
+	requestJSON(t, origin, app.server.SessionToken, http.MethodPost, "/api/labs", map[string]any{"lessonId": goGitLessonID, "lessonVersion": goGitLessonVersion, "labRef": "vulnerable"}, 200, &session)
+	if session.LabID != goGitLabID || session.State != runtime.Prepared || fetches.Load() != 1 {
+		t.Fatalf("Prepare() = %#v, fetches = %d", session, fetches.Load())
 	}
 }
 

@@ -1,17 +1,16 @@
-import type { StateProps } from "../../learner/lesson-data.ts";
-import { PH } from "../../learner/lesson-data.ts";
+import type { LearnerState, SampleLesson } from "../../learner/lesson-data.ts";
 
-type LessonOutlineProps = StateProps & { id?: string };
+type LessonOutlineProps = { state: LearnerState; lesson: SampleLesson; id?: string };
 
-export function LessonOutline({ state: S, id = "lesson-outline" }: LessonOutlineProps) {
+export function LessonOutline({ state: S, lesson, id = "lesson-outline" }: LessonOutlineProps) {
   return (
     <nav id={id} className="lesson-outline" aria-label="学習の流れ">
       <p className="outline-title">学習の流れ</p>
       <p className="outline-progress">
-        {Object.keys(S.done).length} / {PH.length} ステップ完了
+        {Object.keys(S.done).length} / {lesson.phases.length} ステップ完了
       </p>
       <ol>
-        {PH.map((phase, i) => (
+        {lesson.phases.map((phase, i) => (
           <li key={phase[0]}>
             <button
               className={`outline-step ${S.done[i] ? "done" : ""}`}
@@ -32,9 +31,11 @@ export function LessonOutline({ state: S, id = "lesson-outline" }: LessonOutline
           </li>
         ))}
       </ol>
-      <button className="btn" data-a="notes">
-        {"まとめノートを見る"}
-      </button>
+      {lesson.id === "fb" && (
+        <button className="btn" data-a="notes">
+          {"まとめノートを見る"}
+        </button>
+      )}
     </nav>
   );
 }

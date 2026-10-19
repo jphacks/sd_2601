@@ -2,7 +2,7 @@ import type { LearnerState } from "./lesson-data.ts";
 import { requiredElement } from "../shared/dom.ts";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { initialState, L } from "./lesson-data.ts";
+import { initialState, L, lessonByID } from "./lesson-data.ts";
 import { LearnerShell } from "../components/learner/learner-shell.tsx";
 import { NoteEditor, NoteLibrary } from "./learning-notes.tsx";
 import { finishNote, readNote, writeNote } from "./learning-note.ts";
@@ -24,10 +24,18 @@ const noteLesson = {
   lessonId: "command-injection/filebrowser-auth-hook",
   lessonVersion: "1.0.0",
 };
-const sampleLesson = L.find((lesson) => lesson.id === "fb")!;
+const requestedLesson = (() => {
+  const values = new URLSearchParams(window.location.search).getAll("lessonId");
+  if (values.length !== 1) return undefined;
+  return L.find((lesson) => lesson.lessonId === values[0]);
+})();
 
 function App() {
-  const [state, setState] = useState(initialState);
+  const [state, setState] = useState(() =>
+    requestedLesson
+      ? { ...initialState, lesson: requestedLesson.id, view: "detail" as const }
+      : initialState,
+  );
   const [noteState, setNoteState] = useState(() => readNote(noteLesson));
   const [noteStatus, setNoteStatus] = useState("");
   const [dark, setDark] = useState(false);
@@ -40,6 +48,7 @@ function App() {
   const pendingPhase = useRef<{ phase: number; previous?: number } | null>(null);
   const update = (patch: Partial<LearnerState>) =>
     setState((previous) => ({ ...previous, ...patch }));
+  const selectedLesson = lessonByID(state.lesson);
   const trackPhase = useCallback((phase: number) => {
     setState((previous) => (previous.p === phase ? previous : { ...previous, p: phase }));
   }, []);
@@ -80,7 +89,7 @@ function App() {
   }
 
   const { deployLab, stopLab, destroyLab, showLogs, readMarker, observeService, compareMarker } =
-    useLearnerLab({ api, state, update, setState, setMessage });
+    useLearnerLab({ api, lesson: selectedLesson, state, update, setState, setMessage });
   const action = createLearnerActionHandler({
     state,
     update,
@@ -154,6 +163,9 @@ function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
   }, [dark]);
+  useEffect(() => {
+    api.selectLesson(selectedLesson.lessonId);
+  }, [selectedLesson.lessonId]);
   useEffect(() => {
     if (!message) return;
     const timer = setTimeout(() => setMessage(""), 2200);
